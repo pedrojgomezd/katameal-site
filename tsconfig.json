@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@katameal/*": ["./src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
