@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import Script from 'next/script';
 import { routing } from '@/i18n/routing';
 import { StructuredData } from '@/components/StructuredData';
 import "../globals.css";
@@ -91,6 +92,18 @@ export default async function LocaleLayout({
         <StructuredData />
       </head>
       <body className={`${poppins.variable} antialiased`}>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-Y0JT5W8HPP"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-Y0JT5W8HPP');
+          `}
+        </Script>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
