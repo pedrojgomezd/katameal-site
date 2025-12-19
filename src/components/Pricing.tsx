@@ -174,7 +174,20 @@ export function Pricing() {
               variant={plan.popular ? 'secondary' : plan.bestValue ? 'primary' : 'outline'}
               className="w-full mt-auto"
               size="md"
-              onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => {
+                // Set the selected plan in URL params
+                const params = new URLSearchParams(window.location.search);
+                params.set('plan', plan.id.toString());
+                params.set('planName', encodeURIComponent(plan.name));
+                // Update URL with hash and params
+                window.history.pushState({}, '', `#contact?${params.toString()}`);
+                // Scroll to contact form
+                setTimeout(() => {
+                  document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+                // Trigger a custom event to notify ContactForm
+                window.dispatchEvent(new Event('hashchange'));
+              }}
             >
               {t('selectPlan')}
             </Button>

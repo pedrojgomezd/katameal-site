@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { Section } from './ui/Section';
 import { Button } from './ui/Button';
 
@@ -14,6 +14,42 @@ export function ContactForm() {
   const t = useTranslations('contact');
   const v = useTranslations('validation');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string } | null>(null);
+
+  const parseHashParams = () => {
+    if (typeof window === 'undefined') return null;
+    const hash = window.location.hash;
+    if (hash.includes('?')) {
+      const params = new URLSearchParams(hash.split('?')[1]);
+      const planId = params.get('plan');
+      const planName = params.get('planName');
+      if (planId && planName) {
+        return { id: planId, name: decodeURIComponent(planName) };
+      }
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    // Check on mount
+    const plan = parseHashParams();
+    if (plan) {
+      setSelectedPlan(plan);
+    }
+
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const plan = parseHashParams();
+      if (plan) {
+        setSelectedPlan(plan);
+      } else {
+        setSelectedPlan(null);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const formSchema = z.object({
     name: z.string().min(2, v('nameMin')),
@@ -22,6 +58,7 @@ export function ContactForm() {
     company: z.string().optional(),
     location: z.string().min(1, v('locationRequired')),
     message: z.string().min(10, v('messageMin')).optional(),
+    plan: z.string().optional(),
   });
 
   type FormData = z.infer<typeof formSchema>;
@@ -31,23 +68,69 @@ export function ContactForm() {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      plan: selectedPlan?.name || '',
+    },
   });
+
+  useEffect(() => {
+    if (selectedPlan) {
+      setValue('plan', selectedPlan.name);
+    }
+  }, [selectedPlan, setValue]);
 
   const onSubmit = async (data: FormData) => {
     setStatus('loading');
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Format WhatsApp message
+    const whatsappNumber = '19728961209';
+    let message = `¡Hola! Me interesa solicitar información sobre el plan: ${data.plan || 'No especificado'}\n\n`;
+    message += `*Información de contacto:*\n`;
+    message += `Nombre: ${data.name}\n`;
+    message += `Email: ${data.email}\n`;
+    message += `Teléfono: ${data.phone}\n`;
+    if (data.company) {
+      message += `Empresa: ${data.company}\n`;
+    }
+    message += `Ubicación del sitio: ${data.location}\n`;
+    if (data.message) {
+      message += `\nMensaje: ${data.message}`;
+    }
     
-    // For demo purposes, always succeed
-    console.log('Form data:', data);
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+    
+    // Open WhatsApp
+    window.open(whatsappUrl, '_blank');
+    
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
     setStatus('success');
     reset();
+    setSelectedPlan(null);
 
     // Reset status after 5 seconds
     setTimeout(() => setStatus('idle'), 5000);
+  };
+
+  const clearSelectedPlan = () => {
+    setSelectedPlan(null);
+    setValue('plan', '');
+    // Remove from URL hash
+    const hash = window.location.hash;
+    if (hash.includes('?')) {
+      const [hashPart, queryPart] = hash.split('?');
+      const params = new URLSearchParams(queryPart);
+      params.delete('plan');
+      params.delete('planName');
+      const newHash = params.toString() ? `${hashPart}?${params.toString()}` : hashPart;
+      window.history.replaceState({}, '', newHash);
+    }
   };
 
   return (
@@ -94,6 +177,22 @@ export function ContactForm() {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {selectedPlan && (
+                <div className="bg-secondary/20 border border-secondary/30 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-text-light mb-1">Plan seleccionado:</p>
+                    <p className="text-lg font-bold text-secondary">{selectedPlan.name}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearSelectedPlan}
+                    className="p-2 hover:bg-secondary/30 rounded-full transition-colors"
+                    aria-label="Eliminar plan seleccionado"
+                  >
+                    <X className="w-5 h-5 text-text-light" />
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <input
@@ -182,6 +281,7 @@ export function ContactForm() {
                 )}
               </div>
 
+              <input type="hidden" {...register('plan')} />
               <Button
                 type="submit"
                 variant="secondary"
@@ -196,7 +296,7 @@ export function ContactForm() {
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    {t('submit')}
+                    Solicitar Información
                     <Send className="w-5 h-5" />
                   </span>
                 )}
